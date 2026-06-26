@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Anime Hub</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            background: #0a0a0a;
+            color: white;
+            font-family: Arial;
+        }
+        .header {
+            background: linear-gradient(90deg, #1a1a2e, #16213e);
+            padding: 20px;
+            text-align: center;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+        .header h1 {
+            background: linear-gradient(45deg, #ff006e, #8338ec);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            font-size: 2em;
+        }
+        .search {
+            margin: 20px auto;
+            max-width: 600px;
+            padding: 0 20px;
+        }
+        .search input {
+            width: 100%;
+            padding: 12px 20px;
+            border-radius: 25px;
+            border: none;
+            background: rgba(255,255,255,0.1);
+            color: white;
+            font-size: 16px;
+        }
+        .section {
+            padding: 20px;
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+        .section h2 {
+            margin-bottom: 15px;
+            color: #00d4ff;
+        }
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+            gap: 20px;
+        }
+        .card {
+            background: #1a1a1a;
+            border-radius: 12px;
+            overflow: hidden;
+            cursor: pointer;
+            transition: transform 0.3s;
+        }
+        .card:hover { transform: scale(1.05); }
+        .card img {
+            width: 100%;
+            height: 250px;
+            object-fit: cover;
+        }
+        .card-info {
+            padding: 10px;
+        }
+        .card-info h3 {
+            font-size: 14px;
+            margin-bottom: 5px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .card-info p {
+            font-size: 12px;
+            color: #aaa;
+        }
+        .player-modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.95);
+            z-index: 1000;
+        }
+        .player-modal.active { display: flex; flex-direction: column; }
+        .close {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: rgba(255,255,255,0.1);
+            color: white;
+            border: none;
+            padding: 10px 15px;
+            border-radius: 50%;
+            cursor: pointer;
+            font-size: 20px;
+            z-index: 1001;
+        }
+        iframe {
+            width: 100%;
+            height: 100%;
+            border: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>🎬 Anime Hub</h1>
+        <div class="search">
+            <input type="text" id="search" placeholder="Search anime..." 
+                   onkeypress="if(event.key==='Enter') search()">
+        </div>
+    </div>
+
+    <div class="section">
+        <h2>🔥 Trending Now</h2>
+        <div class="grid" id="trending"></div>
+    </div>
+
+    <div class="section">
+        <h2>⭐ Most Popular</h2>
+        <div class="grid" id="popular"></div>
+    </div>
+
+    <div class="section">
+        <h2>🆕 New Releases</h2>
+        <div class="grid" id="new"></div>
+    </div>
+
+    <div class="player-modal" id="playerModal">
+        <button class="close" onclick="closePlayer()">✕</button>
+        <iframe id="playerFrame" allowfullscreen></iframe>
+    </div>
+
+    <script>
+        const API = '/api';
+        
+        window.onload = async () => {
+            const home = await fetch(`${API}/home`).then(r => r.json());
+            displayAnime(home.trending, 'trending');
+            displayAnime(home.popular, 'popular');
+            displayAnime(home.newReleases, 'new');
+        };
+        
+        async function search() {
+            const q = document.getElementById('search').value;
+            if (!q) return;
+            
+            const result = await fetch(`${API}/search/${q}`).then(r => r.json());
+            displayAnime(result.results, 'trending');
+            window.scrollTo(0, 0);
+        }
+        
+        async function playAnime(id) {
+            try {
+                const eps = await fetch(`${API}/episodes/${id}`).then(r => r.json());
+                if (eps.episodes && eps.episodes.length > 0) {
+                    const stream = await fetch(`${API}/stream/${eps.episodes[0].id}`).then(r => r.json());
+                    if (stream.servers && stream.servers.length > 0) {
+                        document.getElementById('playerFrame').src = stream.servers[0].url;
+                        document.getElementById('playerModal').classList.add('active');
+                    }
+                }
+            } catch (e) {
+                alert('Episode not available. Try another anime.');
+            }
+        }
+        
+        function displayAnime(list, containerId) {
+            const container = document.getElementById(containerId);
+            if (!list) return;
+            container.innerHTML = list.map(anime => `
+                <div class="card" onclick="playAnime('${anime.id}')">
+                    <img src="${anime.image}" loading="lazy">
+                    <div class="card-info">
+                        <h3>${anime.title}</h3>
+                        <p>⭐ ${anime.score || 'N/A'} | 📺 ${anime.episodes || '?'} eps</p>
+                    </div>
+                </div>
+            `).join('');
+        }
+        
+        function closePlayer() {
+            document.getElementById('playerModal').classList.remove('active');
+            document.getElementById('playerFrame').src = '';
+        }
+    </script>
+</body>
+</html>
